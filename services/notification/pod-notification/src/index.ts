@@ -16,9 +16,19 @@
 import { Analytics } from '@hcengineering/analytics'
 import { SplitLogger, configureAnalytics, createOpenTelemetryMetricsContext } from '@hcengineering/analytics-service'
 import { newMetrics } from '@hcengineering/core'
+import { setMetadata } from '@hcengineering/platform'
 import { initStatisticsContext } from '@hcengineering/server-core'
+import serverToken from '@hcengineering/server-token'
 import { join } from 'path'
 import { main } from './main'
+
+const serverSecret = process.env.SERVER_SECRET
+if (serverSecret === undefined) {
+  console.error('SERVER_SECRET env var is required to sign stats tokens')
+  process.exit(1)
+}
+setMetadata(serverToken.metadata.Secret, serverSecret)
+setMetadata(serverToken.metadata.Service, 'notification')
 
 configureAnalytics('notification', process.env.VERSION ?? '0.7.0')
 const metricsContext = initStatisticsContext('notification', {
