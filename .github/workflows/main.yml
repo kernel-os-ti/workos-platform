@@ -730,8 +730,9 @@ jobs:
           bash common/scripts/docker_ghcr_push.sh
 
   dist-build:
-    # if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
+    # Desktop client build (macOS). Disabled on this fork — we don't ship desktop apps.
+    # Re-enable by replacing `false` with the original tag-gate condition.
+    if: false
     needs: build
     runs-on: macos-latest
     timeout-minutes: 60
@@ -833,8 +834,8 @@ jobs:
           path: ./desktop-package/deploy/Huly-linux-*.zip
 
   qms-dist-build:
-    # if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
+    # QMS desktop client build (macOS). Disabled on this fork — we don't ship desktop apps.
+    if: false
     needs: build
     runs-on: macos-latest
     timeout-minutes: 60
@@ -936,7 +937,10 @@ jobs:
           path: ./qms-desktop-package/deploy/TraceX-linux-*.zip
 
   publish-npm:
-    if: startsWith(github.event.inputs.ref || github.ref, 'refs/tags/v') && (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true')
+    # NPM package publishing. Disabled on this fork — we consume Huly via Docker images,
+    # not as library imports. Re-enable by restoring the tag-gate condition and adding
+    # an NPM_TOKEN secret (or switch target registry to GitHub Packages).
+    if: false
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 30
