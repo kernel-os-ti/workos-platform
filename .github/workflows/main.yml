@@ -639,6 +639,9 @@ jobs:
     needs: [uitest-workspaces]
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
     steps:
       # https://github.com/actions/runner-images/issues/2840#issuecomment-790492173
       - uses: actions/checkout@v6
@@ -690,14 +693,6 @@ jobs:
       - name: Model version from git tags
         run: node common/scripts/install-run-rush.js model-version
 
-      - name: Login to Docker Hub
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-        continue-on-error: true
-        uses: docker/login-action@v4
-        with:
-          username: hardcoreeng
-          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-
       - name: Docker build
         run: |
           node common/scripts/install-run-rush.js docker:build -v
@@ -716,30 +711,28 @@ jobs:
           DOCKER_CLI_HINTS: false
           DOCKER_EXTRA: --platform=linux/amd64,linux/arm64
           DOCKER_BUILDKIT: 1
-      - name: Login to Docker Hub
-        if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
+      - name: Login to GHCR
+        if: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true') }}
         uses: docker/login-action@v4
         with:
-          username: hardcoreeng
-          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-      # - name: Docker push staging
-      #   if: ${{ github.ref == 'refs/heads/main' }}
-      #   run: node common/scripts/install-run-rush.js docker:staging -v
-      - name: Docker push tag
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push images to GHCR
         if: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true') }}
+        env:
+          DOCKER_REGISTRY: ghcr.io
+          DOCKER_NAMESPACE: ${{ github.repository_owner }}
+          DOCKER_SOURCE_NAMESPACE: hardcoreeng
+          ALSO_LATEST: 'true'
         run: |
-          echo Pushing release of tag ${{ github.ref }}
-          node common/scripts/install-run-rush.js docker:push -v
-      - name: Docker push love-agent
-        if: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s')) && (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true') }}
-        run: |
-          echo Pushing love-agent release of tag ${{ github.ref }}
-          cd ./services/ai-bot/love-agent
-          pnpm docker:push
+          echo "Publishing tag ${GITHUB_REF_NAME} to ${DOCKER_REGISTRY}/${DOCKER_NAMESPACE}/*"
+          bash common/scripts/docker_ghcr_push.sh
 
   dist-build:
-    # if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
+    # Desktop client build (macOS). Disabled on this fork — we don't ship desktop apps.
+    # Re-enable by replacing `false` with the original tag-gate condition.
+    if: false
     needs: build
     runs-on: macos-latest
     timeout-minutes: 60
@@ -841,8 +834,8 @@ jobs:
           path: ./desktop-package/deploy/Huly-linux-*.zip
 
   qms-dist-build:
-    # if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/s') }}
+    # QMS desktop client build (macOS). Disabled on this fork — we don't ship desktop apps.
+    if: false
     needs: build
     runs-on: macos-latest
     timeout-minutes: 60
@@ -944,7 +937,10 @@ jobs:
           path: ./qms-desktop-package/deploy/TraceX-linux-*.zip
 
   publish-npm:
-    if: startsWith(github.event.inputs.ref || github.ref, 'refs/tags/v') && (github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true')
+    # NPM package publishing. Disabled on this fork — we consume Huly via Docker images,
+    # not as library imports. Re-enable by restoring the tag-gate condition and adding
+    # an NPM_TOKEN secret (or switch target registry to GitHub Packages).
+    if: false
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 30

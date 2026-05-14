@@ -1,4 +1,5 @@
-# This is a basic workflow to help you get started with Actions
+# Build the base images that service Dockerfiles `FROM`. Publishes to GHCR
+# under ghcr.io/<owner>/{base,base-slim,rekoni-base,print-base,front-base,preview-base}:$VERSION.
 
 name: Docker base image
 
@@ -10,15 +11,17 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag for the images'
-        required: false
-        default: 'latest'
+        description: 'Version tag for the images (e.g. v20260512)'
+        required: true
         type: string
 
 jobs:
   docker-build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -50,18 +53,34 @@ jobs:
           DOCKER_CLI_HINTS: false
           DOCKER_EXTRA: --platform=linux/amd64,linux/arm64
           VERSION: ${{ inputs.version }}
-      - name: Login to Docker Hub
+      - name: Login to GHCR
         uses: docker/login-action@v4
         with:
-          username: hardcoreeng
-          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-      - name: Publish base image
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish base images to GHCR
         env:
-          DOCKER_CLI_HINTS: false
-          DOCKER_EXTRA: --platform=linux/amd64,linux/arm64
+          DOCKER_REGISTRY: ghcr.io
+          DOCKER_NAMESPACE: ${{ github.repository_owner }}
           VERSION: ${{ inputs.version }}
         run: |
-          echo Pushing base image
-          cd ./dev/base-image
-          ./push.sh
+          set -euo pipefail
+          NAMESPACE=$(echo "$DOCKER_NAMESPACE" | tr '[:upper:]' '[:lower:]')
+          for name in base base-slim rekoni-base print-base front-base preview-base; do
+            src="hardcoreeng/${name}:${VERSION}"
+            dst="${DOCKER_REGISTRY}/${NAMESPACE}/${name}:${VERSION}"
+            echo "Tagging $src -> $dst"
+            docker tag "$src" "$dst"
+            for n in {1..25}; do
+              docker push "$dst" && break
+              if [ $n -lt 25 ]; then
+                echo "push failed, retry in 5s"
+                sleep 5
+              else
+                echo "push failed after 25 attempts" >&2
+                exit 1
+              fi
+            done
+          done
 
