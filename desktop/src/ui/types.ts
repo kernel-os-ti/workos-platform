@@ -75,6 +75,25 @@ export interface Config {
 
 export interface Branding {
   title?: string
+  // Whitelabel: brand noun used for {brand} i18n substitution; defaults to title or 'Huly'.
+  name?: string
+  // Whitelabel: replaces the hardcoded 'https://huly.io/signup' fallback.
+  signupUrl?: string
+  // Whitelabel: optional logo URL overrides; if unset the client falls back to bundled defaults.
+  logo?: {
+    light?: string
+    dark?: string
+    wordmarkLight?: string
+    wordmarkDark?: string
+  }
+  // Whitelabel: brand colors applied as CSS custom properties on :root at boot.
+  theme?: {
+    primary?: string
+    primaryHover?: string
+    primaryPressed?: string
+    accent?: string
+    loginGradient?: { from: string, to: string }
+  }
   links?: {
     rel: string
     href: string

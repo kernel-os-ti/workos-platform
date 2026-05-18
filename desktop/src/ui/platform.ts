@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import {
+import platform, {
   Plugin,
   addEventListener,
   addLocation,
@@ -310,6 +310,25 @@ function configureI18n (): void {
   addStringsLoader(ratingId, async (lang: string) => await import(`@hcengineering/rating-assets/lang/${lang}.json`))
 }
 
+// Whitelabel: write brand-color overrides as CSS custom properties on :root.
+// Mirrors the implementation in dev/prod/src/platform.ts so the desktop renderer
+// applies the same brand theme as the web frontend when both fetch the same
+// /branding.json from the back-end.
+function applyBrandTheme (theme?: Branding['theme']): void {
+  if (theme === undefined) return
+  const root = document.documentElement
+  const set = (cssVar: string, value?: string): void => {
+    if (value !== undefined && value !== '') root.style.setProperty(cssVar, value)
+  }
+  set('--primary-button-default', theme.primary)
+  set('--primary-button-hovered', theme.primaryHover ?? theme.primary)
+  set('--primary-button-pressed', theme.primaryPressed ?? theme.primary)
+  set('--primary-button-focused', theme.primary)
+  set('--primary-color-blue', theme.accent ?? theme.primary)
+  set('--brand-login-gradient-from', theme.loginGradient?.from)
+  set('--brand-login-gradient-to', theme.loginGradient?.to)
+}
+
 export class PlatformBranding {
   constructor (private readonly title: string) {}
 
@@ -336,8 +355,16 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
   console.log('loading configuration', config)
   console.log('loaded branding', myBranding)
 
-  const title = myBranding.title ?? 'Huly Desktop'
+  const title = myBranding.title ?? myBranding.name ?? 'Loading…'
   ipcMain.setTitle(title)
+
+  // Whitelabel: set the brand noun BEFORE any i18n string is resolved, so the
+  // {brand} placeholder injected by withBrand() in @hcengineering/platform's
+  // i18n.ts resolves correctly. Default 'Huly' preserves upstream behavior.
+  setMetadata(platform.metadata.brand, myBranding.name ?? myBranding.title ?? 'Huly')
+
+  // Whitelabel: apply brand-color overrides as CSS custom properties on :root.
+  applyBrandTheme(myBranding.theme)
 
   configureAnalyticsProviders(config)
 
@@ -402,7 +429,7 @@ export async function configurePlatform (onWorkbenchConnect?: () => Promise<void
 
   setMetadata(billingPlugin.metadata.BillingURL, config.BILLING_URL ?? '')
   setMetadata(presentation.metadata.PaymentUrl, config.PAYMENT_URL ?? '')
-  setMetadata(presentation.metadata.SignupUrl, config.SIGNUP_URL ?? 'https://huly.io/signup')
+  setMetadata(presentation.metadata.SignupUrl, myBranding.signupUrl ?? config.SIGNUP_URL ?? 'https://huly.io/signup')
 
   setMetadata(support.metadata.SupportLink, myBranding.support?.supportLink ?? supportLink)
   setMetadata(support.metadata.ReportBugLink, myBranding.support?.reportBugLink ?? reportBugLink)

@@ -24,6 +24,7 @@ import * as path from 'path'
 
 import { Config, MenuBarAction, NotificationParams, JumpListSpares, CommandCloseTab } from '../ui/types'
 import { getOptions } from './args'
+import { brand } from './branding'
 import { addMenus } from './standardMenu'
 import { dispatchMenuBarAction } from './customMenu'
 import { registerFindInPageIpcHandlers } from './findInPage'
@@ -102,7 +103,7 @@ function runTheApp (): void {
     quitApplication()
   }
 
-  console.log('Running Huly', process.env.MODEL_VERSION, process.env.VERSION, isMac, isDev, process.env.NODE_ENV)
+  console.log('Running', brand.productName, process.env.MODEL_VERSION, process.env.VERSION, isMac, isDev, process.env.NODE_ENV)
 
   // Fix screen-sharing thumbnails being missing sometimes
   // See https://github.com/electron/electron/issues/44504
@@ -434,9 +435,9 @@ function runTheApp (): void {
 
     setupCookieHandler(config)
 
-    const updatesUrl = process.env.DESKTOP_UPDATES_URL ?? config.DESKTOP_UPDATES_URL ?? 'https://dist.huly.io'
+    const updatesUrl = process.env.DESKTOP_UPDATES_URL ?? config.DESKTOP_UPDATES_URL ?? brand.updatesUrl
     // NOTE: env format is: default_value;key1:value1;key2:value2...
-    const updatesChannels = (process.env.DESKTOP_UPDATES_CHANNEL ?? config.DESKTOP_UPDATES_CHANNELS ?? config.DESKTOP_UPDATES_CHANNEL ?? 'huly').split(';').map(c => c.trim().split(':'))
+    const updatesChannels = (process.env.DESKTOP_UPDATES_CHANNEL ?? config.DESKTOP_UPDATES_CHANNELS ?? config.DESKTOP_UPDATES_CHANNEL ?? brand.updatesChannel).split(';').map(c => c.trim().split(':'))
     const updateChannelsMap: Record<string, string> = {}
     for (const channelInfo of updatesChannels) {
       if (channelInfo.length === 1) {
@@ -448,7 +449,7 @@ function runTheApp (): void {
     }
 
     const updatesChannelKey = packedConfig?.updatesChannelKey ?? 'default'
-    const updatesChannel = updateChannelsMap[updatesChannelKey] ?? updateChannelsMap.default ?? 'huly'
+    const updatesChannel = updateChannelsMap[updatesChannelKey] ?? updateChannelsMap.default ?? brand.updatesChannel
 
     log.info('updates channels', updatesChannels)
     log.info('updates channel', updatesChannelKey, updatesChannel)

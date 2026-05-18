@@ -18,6 +18,7 @@ import { WindowAction } from '../ui/types'
 import { Settings } from './settings'
 import { getFileInPublicBundledFolder } from './path'
 import { getBadgeIconInfo } from './trayUtils'
+import { brand } from './branding'
 
 export class TrayController {
   private tray: Tray | undefined = undefined
@@ -98,7 +99,7 @@ export class TrayController {
   }
 }
 
-const BASE_TITLE = 'Huly'
+const BASE_TITLE = brand.name
 
 function createTray (activateWindow: WindowAction, quitApplication: WindowAction, icon: NativeImage): Tray {
   const tray = new Tray(icon)

@@ -133,7 +133,8 @@ const expose: IPCMainExposed = {
       await fetch(cfg.BRANDING_URL ?? concatLink(cfg.FRONT_URL, 'branding.json'), { keepalive: true })
     ).json()
     const host = await ipcRenderer.invoke(IpcMessage.GetHost)
-    return branding[host] ?? {}
+    // Whitelabel: '*' is the wildcard entry produced by server/front for env-driven single-brand deployments.
+    return branding[host] ?? branding['*'] ?? {}
   },
   on: (event: string, op: (...args: any[]) => void) => {
     ipcRenderer.on(event, (channel: any, args: any[]) => {
