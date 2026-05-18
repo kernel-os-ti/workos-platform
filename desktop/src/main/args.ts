@@ -14,9 +14,10 @@
 //
 
 import { OptionValues, program } from 'commander'
+import { brand } from './branding'
 
 program
-  .name('Huly')
+  .name(brand.name)
   .allowUnknownOption()
   .allowExcessArguments(true)
   .option('-s, --server <url>', 'Remote server URL (front). E.g. https://huly.app')
