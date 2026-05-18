@@ -208,6 +208,25 @@ export interface Config {
 
 export interface Branding {
   title?: string
+  // Whitelabel: brand noun used for {brand} i18n substitution; defaults to title or 'Huly'.
+  name?: string
+  // Whitelabel: replaces the hardcoded 'https://huly.io/signup' fallback.
+  signupUrl?: string
+  // Whitelabel: optional logo URL overrides; if unset the client falls back to bundled defaults.
+  logo?: {
+    light?: string
+    dark?: string
+    wordmarkLight?: string
+    wordmarkDark?: string
+  }
+  // Whitelabel: brand colors applied as CSS custom properties on :root at boot.
+  theme?: {
+    primary?: string
+    primaryHover?: string
+    primaryPressed?: string
+    accent?: string
+    loginGradient?: { from: string, to: string }
+  }
   links?: Array<{
     rel: string
     href: string
@@ -416,6 +435,25 @@ function configureI18n(): void {
   addStringsLoader(ratingId, async (lang: string) => await import(`@hcengineering/rating-assets/lang/${lang}.json`))
 }
 
+// Whitelabel: write brand-color overrides as CSS custom properties on :root.
+// The theme tokens themselves live in packages/theme/styles/_colors.scss; this
+// just overrides them per deployment. When `theme` is undefined this is a no-op
+// and the SCSS defaults (Huly blue/purple) remain in effect.
+function applyBrandTheme (theme?: Branding['theme']): void {
+  if (theme === undefined) return
+  const root = document.documentElement
+  const set = (cssVar: string, value?: string): void => {
+    if (value !== undefined && value !== '') root.style.setProperty(cssVar, value)
+  }
+  set('--primary-button-default', theme.primary)
+  set('--primary-button-hovered', theme.primaryHover ?? theme.primary)
+  set('--primary-button-pressed', theme.primaryPressed ?? theme.primary)
+  set('--primary-button-focused', theme.primary)
+  set('--primary-color-blue', theme.accent ?? theme.primary)
+  set('--brand-login-gradient-from', theme.loginGradient?.from)
+  set('--brand-login-gradient-to', theme.loginGradient?.to)
+}
+
 export async function configurePlatform() {
   setMetadata(platform.metadata.LoadHelper, async (loader) => {
     for (let i = 0; i < 5; i++) {
@@ -435,12 +473,19 @@ export async function configurePlatform() {
   const config: Config = await loadServerConfig(configs[clientType ?? ''] ?? '/config.json')
   const branding: BrandingMap =
     config.BRANDING_URL !== undefined ? await (await fetch(config.BRANDING_URL, { keepalive: true })).json() : {}
-  const myBranding = branding[window.location.host] ?? {}
+  const myBranding = branding[window.location.host] ?? branding['*'] ?? {}
 
   console.log('loading configuration', config)
   console.log('loaded branding', myBranding)
 
   const title = myBranding.title ?? 'Platform'
+
+  // Whitelabel: set the brand noun BEFORE any i18n string is resolved, so the
+  // {brand} placeholder injected by `withBrand()` in i18n.ts resolves correctly.
+  setMetadata(platform.metadata.brand, myBranding.name ?? myBranding.title ?? 'Huly')
+
+  // Whitelabel: apply brand-color overrides as CSS custom properties on :root.
+  applyBrandTheme(myBranding.theme)
 
   // apply branding
   window.document.title = title
@@ -490,7 +535,7 @@ export async function configurePlatform() {
   setMetadata(presentation.metadata.StatsUrl, config.STATS_URL)
   setMetadata(presentation.metadata.LinkPreviewUrl, config.LINK_PREVIEW_URL)
   setMetadata(presentation.metadata.MailUrl, config.MAIL_URL)
-  setMetadata(presentation.metadata.SignupUrl, config.SIGNUP_URL ?? 'https://huly.io/signup')
+  setMetadata(presentation.metadata.SignupUrl, myBranding.signupUrl ?? config.SIGNUP_URL ?? 'https://huly.io/signup')
 
   const disabledFeatures = (config.DISABLED_FEATURES ??'').split(',').map(it => it.trim()).filter(it => it.length > 0)
   setMetadata(presentation.metadata.DisabledFeatures, new Set(disabledFeatures))

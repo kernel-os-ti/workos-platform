@@ -125,6 +125,8 @@ export function startFront (ctx: MeasureContext, extraConfig?: Record<string, st
 
   const datalakeUrl = process.env.DATALAKE_URL
 
+  const brandingConfig = buildBrandingConfig()
+
   setMetadata(serverToken.metadata.Secret, serverSecret)
   setMetadata(serverToken.metadata.Service, 'front')
 
@@ -157,7 +159,8 @@ export function startFront (ctx: MeasureContext, extraConfig?: Record<string, st
     paymentUrl,
     pulseUrl,
     hulylakeUrl,
-    datalakeUrl
+    datalakeUrl,
+    brandingConfig
   }
   console.log('Starting Front service with', config)
   const shutdown = start(ctx, config, SERVER_PORT, extraConfig)
@@ -172,4 +175,56 @@ export function startFront (ctx: MeasureContext, extraConfig?: Record<string, st
 
   process.on('SIGINT', close)
   process.on('SIGTERM', close)
+}
+
+// Whitelabel: build a single-brand Branding object from BRAND_* env vars.
+// Returned object is wrapped server-side as { '*': brandingConfig } so the
+// existing host-keyed BrandingMap mechanism keeps working unchanged.
+// Returns undefined when no BRAND_NAME is set (i.e. default Huly deployment),
+// in which case the existing static branding.json (if any) is served instead.
+function buildBrandingConfig (): Record<string, any> | undefined {
+  const name = process.env.BRAND_NAME
+  if (name === undefined || name === '') return undefined
+
+  const links: Array<{ rel: string, href: string, type?: string, sizes?: string }> = []
+  if (process.env.BRAND_FAVICON_URL !== undefined) {
+    links.push({ rel: 'icon', href: process.env.BRAND_FAVICON_URL })
+  }
+  if (process.env.BRAND_PWA_MANIFEST_URL !== undefined) {
+    links.push({ rel: 'manifest', href: process.env.BRAND_PWA_MANIFEST_URL })
+  }
+
+  const logo: Record<string, string> = {}
+  if (process.env.BRAND_LOGO_LIGHT_URL !== undefined) logo.light = process.env.BRAND_LOGO_LIGHT_URL
+  if (process.env.BRAND_LOGO_DARK_URL !== undefined) logo.dark = process.env.BRAND_LOGO_DARK_URL
+  if (process.env.BRAND_WORDMARK_LIGHT_URL !== undefined) logo.wordmarkLight = process.env.BRAND_WORDMARK_LIGHT_URL
+  if (process.env.BRAND_WORDMARK_DARK_URL !== undefined) logo.wordmarkDark = process.env.BRAND_WORDMARK_DARK_URL
+
+  const theme: Record<string, any> = {}
+  if (process.env.BRAND_PRIMARY_COLOR !== undefined) theme.primary = process.env.BRAND_PRIMARY_COLOR
+  if (process.env.BRAND_PRIMARY_HOVER_COLOR !== undefined) theme.primaryHover = process.env.BRAND_PRIMARY_HOVER_COLOR
+  if (process.env.BRAND_PRIMARY_PRESSED_COLOR !== undefined) theme.primaryPressed = process.env.BRAND_PRIMARY_PRESSED_COLOR
+  if (process.env.BRAND_ACCENT_COLOR !== undefined) theme.accent = process.env.BRAND_ACCENT_COLOR
+  if (process.env.BRAND_LOGIN_GRADIENT_FROM !== undefined && process.env.BRAND_LOGIN_GRADIENT_TO !== undefined) {
+    theme.loginGradient = {
+      from: process.env.BRAND_LOGIN_GRADIENT_FROM,
+      to: process.env.BRAND_LOGIN_GRADIENT_TO
+    }
+  }
+
+  const support: Record<string, string> = {}
+  if (process.env.BRAND_SUPPORT_URL !== undefined) support.supportLink = process.env.BRAND_SUPPORT_URL
+  if (process.env.BRAND_DOCS_URL !== undefined) support.docsLink = process.env.BRAND_DOCS_URL
+  if (process.env.BRAND_REPORT_BUG_URL !== undefined) support.reportBugLink = process.env.BRAND_REPORT_BUG_URL
+  if (process.env.BRAND_PRIVACY_URL !== undefined) support.privacyPolicyLink = process.env.BRAND_PRIVACY_URL
+
+  return {
+    name,
+    title: process.env.BRAND_TITLE ?? name,
+    ...(process.env.BRAND_SIGNUP_URL !== undefined ? { signupUrl: process.env.BRAND_SIGNUP_URL } : {}),
+    ...(links.length > 0 ? { links } : {}),
+    ...(Object.keys(logo).length > 0 ? { logo } : {}),
+    ...(Object.keys(theme).length > 0 ? { theme } : {}),
+    ...(Object.keys(support).length > 0 ? { support } : {})
+  }
 }

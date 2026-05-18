@@ -177,7 +177,7 @@
       position: absolute;
       content: '';
       inset: 0;
-      background: radial-gradient(161.92% 96.11% at 11.33% 3.89%, #313d9a 0%, #202669 100%);
+      background: radial-gradient(161.92% 96.11% at 11.33% 3.89%, var(--brand-login-gradient-from) 0%, var(--brand-login-gradient-to) 100%);
       border-radius: 1rem;
       z-index: -1;
     }
@@ -212,7 +212,7 @@
     position: absolute;
     content: '';
     inset: 0;
-    background: radial-gradient(161.92% 96.11% at 11.33% 3.89%, #313d9a 0%, #202669 100%);
+    background: radial-gradient(161.92% 96.11% at 11.33% 3.89%, var(--brand-login-gradient-from) 0%, var(--brand-login-gradient-to) 100%);
     z-index: -1;
   }
   .panel::after {
