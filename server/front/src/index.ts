@@ -280,6 +280,7 @@ export function start (
     pulseUrl?: string
     hulylakeUrl?: string
     datalakeUrl?: string
+    brandingConfig?: Record<string, any>
   },
   port: number,
   extraConfig?: Record<string, string | undefined>
@@ -332,6 +333,21 @@ export function start (
 
   app.use(morgan('short', { stream: myStream }))
 
+  // Whitelabel: when BRAND_* env vars are present, expose a server-built
+  // single-entry BrandingMap keyed by '*'. The client (dev/prod/src/platform.ts)
+  // looks up branding[window.location.host] ?? branding['*'] ?? {}.
+  // When no brandingConfig is set, this route is not registered and the
+  // existing static branding.json (if any) is served from dist/ unchanged.
+  const effectiveBrandingUrl = config.brandingUrl ?? (config.brandingConfig !== undefined ? '/branding.json' : undefined)
+
+  if (config.brandingConfig !== undefined) {
+    app.get('/branding.json', (req, res) => {
+      res.status(200)
+      res.set('Cache-Control', cacheControlNoCache)
+      res.json({ '*': config.brandingConfig })
+    })
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   app.get('/config.json', async (req, res) => {
     const data = {
@@ -348,7 +364,7 @@ export function start (
       LINK_PREVIEW_URL: config.linkPreviewUrl,
       STREAM_URL: config.streamUrl,
       COLLABORATOR_URL: config.collaboratorUrl,
-      BRANDING_URL: config.brandingUrl,
+      BRANDING_URL: effectiveBrandingUrl,
       PREVIEW_URL: config.previewUrl,
       PUSH_PUBLIC_KEY: config.pushPublicKey,
       DISABLE_SIGNUP: config.disableSignUp,
@@ -400,6 +416,17 @@ export function start (
 
   const dist = resolve(process.env.PUBLIC_DIR ?? cwd(), 'dist')
   console.log('serving static files from', dist)
+
+  // Whitelabel: optional mount for runtime-replaceable brand assets (favicons,
+  // PWA icons, logos). When BRAND_ASSETS_DIR is set, files there are served at
+  // /brand/<file>. A deployer can reference them via BRAND_FAVICON_URL=/brand/favicon.ico
+  // etc. without rebuilding the bundle. The default /huly/* assets shipped in the
+  // image are untouched and remain the fallback when no override is configured.
+  if (process.env.BRAND_ASSETS_DIR !== undefined && process.env.BRAND_ASSETS_DIR !== '') {
+    const brandDir = resolve(process.env.BRAND_ASSETS_DIR)
+    console.log('serving runtime brand assets from', brandDir, 'at /brand')
+    app.use('/brand', express.static(brandDir, { maxAge: '1d', etag: true }))
+  }
 
   let brandingUrl: URL | undefined
   if (config.brandingUrl !== undefined) {

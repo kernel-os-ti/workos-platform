@@ -34,13 +34,39 @@ const loaders = new Map<Plugin, Loader>()
 const translations = new Map<string, Map<Plugin, Messages | Status>>()
 const cache = new Map<string, Map<IntlString, IntlMessageFormat | Status>>()
 const englishTranslationsForMissing = new Map<Plugin, Messages | Status>()
+
+// Whitelabel: every translated string may reference {brand}. Inject the configured
+// brand name (defaulting to 'Huly') so callers don't need to pass it explicitly.
+function withBrand<P extends Record<string, any>> (params: P): P & { brand: string } {
+  const brand = getMetadata(platform.metadata.brand)
+  return { brand: brand !== undefined && brand !== '' ? brand : 'Huly', ...params }
+}
+/**
+ * Whitelabel: rewrite the literal brand noun "Huly" in any loaded translation
+ * to the ICU placeholder `{brand}`. Combined with `withBrand()` below, this lets
+ * a deployment set `platform.metadata.brand` once and have every translated
+ * string follow without editing the upstream locale JSON.
+ */
+function rewriteBrand (obj: unknown): any {
+  if (typeof obj === 'string') return obj.replace(/\bHuly\b/g, '{brand}')
+  if (Array.isArray(obj)) return obj.map(rewriteBrand)
+  if (obj !== null && typeof obj === 'object') {
+    const result: Record<string, any> = {}
+    for (const key of Object.keys(obj as Record<string, unknown>)) {
+      result[key] = rewriteBrand((obj as Record<string, unknown>)[key])
+    }
+    return result
+  }
+  return obj
+}
+
 /**
  * @public
  * @param plugin -
  * @param loader -
  */
 export function addStringsLoader (plugin: Plugin, loader: Loader): void {
-  loaders.set(plugin, loader)
+  loaders.set(plugin, async (locale) => rewriteBrand(await loader(locale)))
 }
 
 /**
@@ -198,7 +224,7 @@ export async function translate<P extends Record<string, any>> (
       if (compiled instanceof Status) {
         return message
       }
-      return compiled.format(params)
+      return compiled.format(withBrand(params))
     }
     const id = _parseId(message)
     if (id.component === _EmbeddedId) {
@@ -211,7 +237,7 @@ export async function translate<P extends Record<string, any>> (
     }
     const compiledNew = new IntlMessageFormat(translation, locale, undefined, { ignoreTag: true })
     localCache.set(message, compiledNew)
-    return compiledNew.format(params)
+    return compiledNew.format(withBrand(params))
   } catch (err) {
     return await handleIntlPipelineFailure(err, message, localCache, skipError)
   }
@@ -239,7 +265,7 @@ export function translateCB<P extends Record<string, any>> (
         resolve(message)
         return
       }
-      resolve(compiled.format(params))
+      resolve(compiled.format(withBrand(params)))
     } else {
       let id: _IdInfo
       try {
@@ -266,7 +292,7 @@ export function translateCB<P extends Record<string, any>> (
 
       const compiledNew = new IntlMessageFormat(translation, locale, undefined, { ignoreTag: true })
       localCache.set(message, compiledNew)
-      resolve(compiledNew.format(params))
+      resolve(compiledNew.format(withBrand(params)))
     }
   } catch (err) {
     void handleIntlPipelineFailure(err, message, localCache, skipError).then(resolve)

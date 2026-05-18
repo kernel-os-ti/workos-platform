@@ -15,6 +15,11 @@
 
 /* Common Colors */
 * {
+  // Whitelabel: brand-color tokens overridable at runtime via applyBrandTheme()
+  // in dev/prod/src/platform.ts. Defaults match upstream Huly visuals.
+  --brand-login-gradient-from: #313d9a;
+  --brand-login-gradient-to: #202669;
+
   --primary-button-color: #fff;
   --primary-button-content-color: rgba(255, 255, 255, .8);
   --primary-button-border: rgba(255, 255, 255, .09);
