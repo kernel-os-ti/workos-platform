@@ -916,6 +916,32 @@ export function setDownloadProgress (percent: number): void {
   upgradeDownloadProgress.set(Math.round(percent))
 }
 
+/**
+ * Returns the semver core `MAJOR.MINOR.PATCH` of a version string, ignoring an
+ * optional `v` prefix and any prerelease (`-…`) or build-metadata (`+…`) suffix.
+ *
+ *   versionCore('v0.7.423')         === '0.7.423'
+ *   versionCore('v0.7.423-krnl2')   === '0.7.423'
+ *   versionCore('0.7.423+build.5')  === '0.7.423'
+ */
+export function versionCore (v: string): string {
+  return v.replace(/^v/, '').split(/[-+]/)[0]
+}
+
+/**
+ * Returns true when two version strings refer to the same semver core, so a
+ * fork that ships server tags like `v0.7.423-krnl2` is recognised as compatible
+ * with a desktop or front bundle built at upstream `v0.7.423`. Strict equality
+ * still holds for the unsuffixed case, so upstream Huly behavior is unchanged.
+ *
+ * Empty / undefined inputs are treated as "no requirement" → compatible, to
+ * preserve the existing skip behavior at the comparison sites.
+ */
+export function versionsCompatible (a?: string, b?: string): boolean {
+  if (a === undefined || b === undefined || a === '' || b === '') return true
+  return versionCore(a) === versionCore(b)
+}
+
 export async function loadServerConfig (url: string): Promise<any> {
   let retries = 5
   let res: Response | undefined
