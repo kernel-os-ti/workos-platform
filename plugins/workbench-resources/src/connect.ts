@@ -45,7 +45,8 @@ import presentation, {
   setCommunicationClient,
   setPresentationCookie,
   uiContext,
-  upgradeDownloadProgress
+  upgradeDownloadProgress,
+  versionsCompatible
 } from '@hcengineering/presentation'
 import {
   desktopPlatform,
@@ -242,7 +243,7 @@ export async function connect (title: string): Promise<Client | undefined> {
             serverVersion !== undefined &&
             serverVersion !== '' &&
             frontVersion !== undefined &&
-            frontVersion !== serverVersion
+            !versionsCompatible(frontVersion, serverVersion)
           ) {
             const reloaded = localStorage.getItem(`versionUpgrade:s${serverVersion}:f${frontVersion}`)
             const isUpgrading = get(upgradeDownloadProgress) >= 0
@@ -421,7 +422,7 @@ export async function connect (title: string): Promise<Client | undefined> {
                 if (currentFrontVersion !== undefined) {
                   try {
                     const frontConfig = await loadServerConfig(concatLink(frontUrl, '/config.json'))
-                    if (frontConfig?.version !== undefined && frontConfig.version !== currentFrontVersion) {
+                    if (frontConfig?.version !== undefined && !versionsCompatible(frontConfig.version, currentFrontVersion)) {
                       console.log('reload due to config version mismatch')
                       location.reload()
                     }
@@ -547,7 +548,7 @@ export async function connect (title: string): Promise<Client | undefined> {
       console.log('checking min model version', requiredVersion)
       const versionStr = versionToString(version)
 
-      if (version === undefined || requiredVersion !== versionStr) {
+      if (version === undefined || !versionsCompatible(requiredVersion, versionStr)) {
         error.set(`${versionStr} => ${requiredVersion}`)
         errorActions.set([])
         return undefined
